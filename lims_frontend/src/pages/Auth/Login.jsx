@@ -26,7 +26,7 @@ export default function Login({ onLogin }) {
       // update state user di App.jsx
       if (onLogin) onLogin(user);
 
-      alert(`Login berhasil! Selamat datang, ${user.username} (${user.role})`);
+      alert(`Login berhasil! Selamat datang, ${user.username} (${user.role_display})`);
       navigate("/dashboard");
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);

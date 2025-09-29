@@ -25,6 +25,6 @@ class Complaint(models.Model):
 
 class CAPA(models.Model):
     complaint = models.ForeignKey("Complaint", on_delete=models.CASCADE, related_name="capas")
-    action = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)  # ✅ tambahkan ini
+    action = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True) 
     updated_at = models.DateTimeField(auto_now=True)

@@ -36,6 +36,7 @@ class FinishedProductSerializer(serializers.ModelSerializer):
 
 class SampleSerializer(serializers.ModelSerializer):
     registered_by = serializers.ReadOnlyField(source="registered_by.username")
+    subtype = serializers.ReadOnlyField()  # ambil dari method subtype() di models
 
     class Meta:
         model = Sample
@@ -45,22 +46,23 @@ class SampleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Generate kode sample otomatis sesuai jenis.
+        Format:
+          - Raw material + tank → J2-210925
+          - Finished product    → batchcode-210925
+          - Default             → SMP-210925-<count>
         """
         from django.utils import timezone
         dt = timezone.now().strftime("%d%m%y")
 
         sample_type = validated_data.get("type")
-        related_raw = validated_data.get("related_raw")
-        related_finished = validated_data.get("related_finished")
+        raw_detail = validated_data.get("detail")
+        tank = validated_data.get("tank")
 
         # === Kode generator ===
-        if related_raw and related_raw.tank_code:
-            # contoh: J3-180925
-            base = related_raw.tank_code
+        if raw_detail and tank:
+            # contoh: J3-210925
+            base = tank
             code = f"{base}-{dt}"
-        elif related_finished and related_finished.batch_code:
-            # finished pakai batch code + tanggal
-            code = f"{related_finished.batch_code}-{dt}"
         else:
             # fallback default
             code = f"SMP-{dt}-{Sample.objects.count()+1}"

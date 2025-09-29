@@ -6,6 +6,8 @@ from django.contrib.auth.password_validation import validate_password
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    role_display = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -15,14 +17,22 @@ class UserSerializer(serializers.ModelSerializer):
             'last_name',
             'email',
             'role',
+            'role_display',   # ✅ tambahin di output
             'phone',
             'department',
             'is_active',
             'date_joined',
-            'is_staff',        # ✅ tambahan
-            'is_superuser',    # ✅ tambahan
+            'is_staff',
+            'is_superuser',
         ]
         read_only_fields = ['id', 'date_joined', 'is_staff', 'is_superuser']
+
+    def get_role_display(self, obj):
+        if obj.is_superuser:
+            return "Superuser"
+        if obj.is_staff and not obj.role:
+            return "Staff"
+        return obj.get_role_display() if obj.role else "-"
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])

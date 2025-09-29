@@ -1,13 +1,17 @@
-# samples/views.py
-from rest_framework import viewsets, permissions, filters
-from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import viewsets, status, permissions, filters
+from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
-from .models import (
-    SampleType, RawMaterial, Packaging, FatBlend, FinishedProduct, Sample
-)
+from rest_framework.decorators import action
+from django_filters.rest_framework import DjangoFilterBackend
+
+from .models import Sample, RawMaterial, SampleType, FatBlend, Packaging, FinishedProduct
 from .serializers import (
-    SampleTypeSerializer, RawMaterialSerializer, PackagingSerializer,
-    FatBlendSerializer, FinishedProductSerializer, SampleSerializer
+    SampleSerializer,
+    RawMaterialSerializer,
+    SampleTypeSerializer,
+    FatBlendSerializer,
+    PackagingSerializer,
+    FinishedProductSerializer,
 )
 
 
@@ -47,8 +51,30 @@ class SampleViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["type", "urgency", "requester", "status"]
-    search_fields = ["code", "requester", "notes"]
+    filterset_fields = ["type", "urgency", "status"]   # requester dihapus
+    search_fields = ["code", "notes"]                  # requester dihapus
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        sample = self.get_object()
+        if not request.user.groups.filter(name__in=["QA Manager", "QA Supervisor", "Admin"]).exists():
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        sample.status = "completed"   # ✅ samain dengan models
+        sample.approved_by = request.user
+        sample.approval_note = request.data.get("note", "")
+        sample.save()
+        return Response({"status": "completed"})
+
+    @action(detail=True, methods=["post"], url_path="reject")
+    def reject(self, request, pk=None):
+        sample = self.get_object()
+        if not request.user.groups.filter(name__in=["QA Manager", "QA Supervisor", "Admin"]).exists():
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        sample.status = "processing"   # bisa juga bikin "rejected" kalau mau tambahin di choices
+        sample.approved_by = request.user
+        sample.approval_note = request.data.get("note", "")
+        sample.save()
+        return Response({"status": "processing"})
 
     def perform_destroy(self, instance):
         user = self.request.user

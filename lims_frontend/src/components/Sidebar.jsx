@@ -36,13 +36,18 @@ const menuConfig = {
 export default function AppSidebar({ user }) {
   if (!user) return null;
 
-  const role = user.role?.toLowerCase();
-  const fullAccessRoles = ["admin", "qa_supervisor", "qa_manager"];
-  console.log("Role dari backend:", user.role);
+  // pastikan snake_case dibaca bener
+  const role = user.role ? user.role.toLowerCase() : null;
+  const isSuper = user.is_superuser ?? false;
 
-  const menus = fullAccessRoles.includes(role)
-    ? menuConfig.all
-    : menuConfig[role] || [];
+  console.log("Role final:", role, "Superuser?", isSuper);
+
+  let menus = [];
+  if (isSuper) {
+    menus = menuConfig.all;
+  } else if (role && menuConfig[role]) {
+    menus = menuConfig[role];
+  }
 
   return (
     <aside className="w-64 bg-gray-900 text-gray-200 flex flex-col min-h-screen shadow-lg">
@@ -59,7 +64,10 @@ export default function AppSidebar({ user }) {
 
       {/* Role Info */}
       <div className="px-4 py-2 border-b border-gray-700 text-sm text-gray-400">
-        Role: <span className="font-medium text-white">{role}</span>
+        Role:{" "}
+        <span className="font-medium text-white">
+          {isSuper ? "Superuser" : role ?? "-"}
+        </span>
       </div>
 
       {/* Menu List */}

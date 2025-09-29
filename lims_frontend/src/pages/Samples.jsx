@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Button, Label, TextInput, Select, Card } from "flowbite-react";
-import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 export default function Samples() {
@@ -8,32 +7,20 @@ export default function Samples() {
   const [loading, setLoading] = useState(false);
 
   // pilihan dari backend
+  const [sampleTypes, setSampleTypes] = useState([]);
   const [rawMaterials, setRawMaterials] = useState([]);
-  const [fatBlends, setFatBlends] = useState([]);
-  const [finishedProducts, setFinishedProducts] = useState([]);
 
   // form state
   const [type, setType] = useState("");
+  const [rawMatType, setRawMatType] = useState("");
   const [tank, setTank] = useState("");
-  const [date, setDate] = useState("");
-  const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [fatBlendId, setFatBlendId] = useState("");
-  const [finishedId, setFinishedId] = useState("");
-
-  // filter state
-  const [filterType, setFilterType] = useState("");
-
-  const navigate = useNavigate();
+  const [date, setDate] = useState("");
 
   // ===== API =====
   const fetchSamples = async () => {
     try {
-      let url = "/samples/";
-      if (filterType) {
-        url += `?type=${filterType}`;
-      }
-      const res = await api.get(url);
+      const res = await api.get("/samples/");
       setSamples(Array.isArray(res.data) ? res.data : res.data.results || []);
     } catch (error) {
       console.error("Gagal mengambil data samples:", error);
@@ -42,14 +29,12 @@ export default function Samples() {
 
   const fetchOptions = async () => {
     try {
-      const [rm, fb, fp] = await Promise.all([
+      const [st, rm] = await Promise.all([
+        api.get("/sample-types/"),
         api.get("/raw-materials/"),
-        api.get("/fat-blends/"),
-        api.get("/finished-products/"),
       ]);
+      setSampleTypes(st.data);
       setRawMaterials(rm.data);
-      setFatBlends(fb.data);
-      setFinishedProducts(fp.data);
     } catch (error) {
       console.error("Gagal ambil data pilihan:", error);
     }
@@ -58,211 +43,170 @@ export default function Samples() {
   useEffect(() => {
     fetchSamples();
     fetchOptions();
-  }, [filterType]);
-
-  // generate kode otomatis untuk raw material
-  useEffect(() => {
-    if (type === "raw_material" && tank && date) {
-      const d = new Date(date);
-      const dd = String(d.getDate()).padStart(2, "0");
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const yy = String(d.getFullYear()).slice(-2);
-      setCode(`${tank}${dd}${mm}${yy}`);
-    }
-  }, [type, tank, date]);
+  }, []);
 
   // ===== Actions =====
   const handleRegister = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      await api.post("/samples/", {
-        type,
-        code,
-        name,
-        related_fatblend: fatBlendId || null,
-        related_finished: finishedId || null,
-      });
+      const payload = {
+        type, // ID SampleType
+        detail: rawMatType || null, // ID RawMaterial kalau ada
+        tank: tank || null,
+        name: name || "",
+      };
+
+      const res = await api.post("/samples/", payload);
+
+      alert(`Sample berhasil dibuat. Kode: ${res.data.code}`);
+
       // reset
       setType("");
+      setRawMatType("");
       setTank("");
       setDate("");
-      setCode("");
       setName("");
-      setFatBlendId("");
-      setFinishedId("");
       fetchSamples();
     } catch (error) {
       console.error("Gagal register sample:", error.response?.data || error);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Yakin mau hapus sampel ini?")) return;
-    try {
-      setLoading(true);
-      await api.delete(`/samples/${id}/`);
-      fetchSamples();
-    } catch (error) {
-      console.error("Gagal hapus sample:", error.response?.data || error);
+      alert("Gagal menyimpan sampel. Cek console untuk detail.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== Render =====
   return (
-    <div className="p-4">
-      {/* Filter */}
-      <div className="mb-4 flex gap-4 items-center">
-        <Label value="Filter Jenis" />
-        <Select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-        >
-          <option value="">Semua</option>
-          <option value="raw_material">Raw Material</option>
-          <option value="fat_blend">Fat Blend</option>
-          <option value="finished_product">Finished Product</option>
-        </Select>
-      </div>
-
-      {/* Form Registrasi */}
-      <Card className="mb-6">
+    <div className="p-4 space-y-8">
+      {/* Form Input */}
+      <Card>
         <form onSubmit={handleRegister} className="flex flex-col gap-4">
           <div>
-            <Label value="Jenis Sampel" />
-            <Select value={type} onChange={(e) => setType(e.target.value)}>
+            <Label htmlFor="type" value="Jenis Sampel" />
+            <Select
+              id="type"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            >
               <option value="">Pilih jenis</option>
-              <option value="raw_material">Raw Material</option>
-              <option value="fat_blend">Fat Blend</option>
-              <option value="finished_product">Finished Product</option>
+              {sampleTypes.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name}
+                </option>
+              ))}
             </Select>
           </div>
 
-          {type === "raw_material" && (
-            <>
-              <div>
-                <Label value="Tangki" />
-                <Select value={tank} onChange={(e) => setTank(e.target.value)}>
-                  <option value="">Pilih Tangki</option>
-                  {["J2","J3","J4","J5","TA","TB","TC","TD","TE","TF"].map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <Label value="Tanggal" />
-                <TextInput
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-            </>
-          )}
+          {type &&
+            sampleTypes.find((st) => st.id === parseInt(type))?.name ===
+              "Raw Material" && (
+              <>
+                <div>
+                  <Label htmlFor="rawMatType" value="Jenis Minyak (Olein, Stearin, dll)" />
+                  <Select
+                    id="rawMatType"
+                    value={rawMatType}
+                    onChange={(e) => setRawMatType(e.target.value)}
+                  >
+                    <option value="">-- pilih --</option>
+                    {rawMaterials.map((rm) => (
+                      <option key={rm.id} value={rm.id}>
+                        {rm.name} {rm.variant}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-          {type === "fat_blend" && (
-            <div>
-              <Label value="Pilih Fat Blend" />
-              <Select
-                value={fatBlendId}
-                onChange={(e) => setFatBlendId(e.target.value)}
-              >
-                <option value="">-- pilih --</option>
-                {fatBlends.map((fb) => (
-                  <option key={fb.id} value={fb.id}>
-                    {fb.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-
-          {type === "finished_product" && (
-            <div>
-              <Label value="Pilih Finished Product" />
-              <Select
-                value={finishedId}
-                onChange={(e) => setFinishedId(e.target.value)}
-              >
-                <option value="">-- pilih --</option>
-                {finishedProducts.map((fp) => (
-                  <option key={fp.id} value={fp.id}>
-                    {fp.name} ({fp.batch_code})
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
+                <div>
+                  <Label htmlFor="tank" value="Tangki" />
+                  <Select
+                    id="tank"
+                    value={tank}
+                    onChange={(e) => setTank(e.target.value)}
+                  >
+                    <option value="">Pilih</option>
+                    {[
+                      "J2","J3","J4","J5","J6","J7","J8","J9","J10","J11","J12","J13",
+                      "TA","TB","TC","TD","TE","TF"
+                    ].map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </Select>
+                </div>
+              </>
+            )}
 
           <div>
-            <Label value="Nama Sampel" />
+            <Label htmlFor="name" value="Nama Sampel" />
             <TextInput
+              id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
-          {code && (
-            <p className="text-sm text-gray-600">
-              Kode Sampel: <b>{code}</b>
-            </p>
-          )}
+          <div>
+            <Label htmlFor="date" value="Tanggal Pengisian" />
+            <TextInput
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
 
-          <Button type="submit">Simpan</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Menyimpan..." : "Simpan"}
+          </Button>
         </form>
       </Card>
 
-      {/* Daftar Sampel */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 text-left">ID</th>
-              <th className="px-4 py-2 text-left">Kode Sampel</th>
-              <th className="px-4 py-2 text-left">Jenis</th>
-              <th className="px-4 py-2 text-left">Nama</th>
-              <th className="px-4 py-2 text-left">Tanggal</th>
-              <th className="px-4 py-2 text-left">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {samples.map((s) => (
-              <tr key={s.id}>
-                <td className="px-4 py-2">{s.id}</td>
-                <td className="px-4 py-2">{s.code}</td>
-                <td className="px-4 py-2">{s.type}</td>
-                <td className="px-4 py-2">{s.name}</td>
-                <td className="px-4 py-2">{s.registered_at?.slice(0,10)}</td>
-                <td className="px-4 py-2 flex gap-2">
-                  <Button
-                    size="xs"
-                    color="info"
-                    onClick={() => navigate(`/analysis/${s.id}`)}
-                  >
-                    Analyze
-                  </Button>
-                  <Button
-                    size="xs"
-                    color="failure"
-                    onClick={() => handleDelete(s.id)}
-                    disabled={loading}
-                  >
-                    {loading ? "..." : "Delete"}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {samples.length === 0 && (
+      {/* Tabel Samples */}
+      <Card>
+        <h2 className="text-lg font-semibold mb-4">Daftar Sampel</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-300">
+            <thead className="bg-gray-100">
               <tr>
-                <td colSpan="6" className="text-center py-4 text-gray-500">
-                  Belum ada sampel terdaftar.
-                </td>
+                <th className="border px-2 py-1 text-left">Kode</th>
+                <th className="border px-2 py-1 text-left">Nama</th>
+                <th className="border px-2 py-1 text-left">Jenis</th>
+                <th className="border px-2 py-1 text-left">Status</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {samples.length > 0 ? (
+                samples.map((s) => (
+                  <tr key={s.id} className="bg-white">
+                    <td className="border px-2 py-1 font-medium">{s.code}</td>
+                    <td className="border px-2 py-1">{s.name}</td>
+                    <td className="border px-2 py-1">{sampleTypes.find((st) => st.id === s.type)?.name || "-"}</td>
+                    <td className="border px-2 py-1">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          s.status === "registered"
+                            ? "bg-blue-100 text-blue-700"
+                            : s.status === "in_progress"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {s.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center border px-2 py-1">
+                    Belum ada sampel
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

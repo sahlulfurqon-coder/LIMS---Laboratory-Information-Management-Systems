@@ -36,6 +36,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
                 'role': self.user.role,
                 'first_name': self.user.first_name,
                 'last_name': self.user.last_name,
+                'is_superuser': self.user.is_superuser,
+                'is_staff': self.user.is_staff,
             }
         })
         return data

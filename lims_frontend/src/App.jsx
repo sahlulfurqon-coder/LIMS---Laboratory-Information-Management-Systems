@@ -15,21 +15,23 @@ import Requests from "./pages/Requests";
 import Inventory from "./pages/Inventory";
 import Reports from "./pages/Reports";
 
+// Komponen PrivateRoute: hanya render children kalau user login
+function PrivateRoute({ user, children }) {
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
 function App() {
   const [user, setUser] = useState(null);
 
   // Ambil user dari localStorage saat pertama kali load
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
   const handleLogin = (userData) => {
-    if (userData?.access) {
-      localStorage.setItem("token", userData.access);
-    }
+    if (userData?.access) localStorage.setItem("token", userData.access);
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
   };
@@ -46,32 +48,91 @@ function App() {
       <AppNavbar user={user} onLogout={handleLogout} />
 
       <div className="flex min-h-screen">
-        {/* Sidebar hanya muncul jika user sudah login */}
         {user && <AppSidebar user={user} />}
 
         <div className="flex-1 p-4">
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Public routes */}
+            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            <Route path="/register" element={<Register />} />
 
-            {!user ? (
-              <>
-                <Route path="/login" element={<Login onLogin={handleLogin} />} />
-                <Route path="/register" element={<Register />} />
-              </>
-            ) : (
-              <>
-                <Route path="/dashboard" element={<Dashboard user={user} />} />
-                <Route path="/samples" element={<Samples />} />
-                <Route path="/analysis" element={<Analysis />} />
-                <Route path="/specs" element={<Specs />} />
-                <Route path="/complaints" element={<Complaints />} />
-                <Route path="/documents" element={<Documents />} />
-                <Route path="/requests" element={<Requests />} />
-                <Route path="/inventory" element={<Inventory />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </>
-            )}
+            {/* Private routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute user={user}>
+                  <Dashboard user={user} />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/samples"
+              element={
+                <PrivateRoute user={user}>
+                  <Samples />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/analysis"
+              element={
+                <PrivateRoute user={user}>
+                  <Analysis />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/specs"
+              element={
+                <PrivateRoute user={user}>
+                  <Specs />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/complaints"
+              element={
+                <PrivateRoute user={user}>
+                  <Complaints />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/documents"
+              element={
+                <PrivateRoute user={user}>
+                  <Documents />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/requests"
+              element={
+                <PrivateRoute user={user}>
+                  <Requests />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <PrivateRoute user={user}>
+                  <Inventory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <PrivateRoute user={user}>
+                  <Reports />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Redirect root & unknown */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
       </div>

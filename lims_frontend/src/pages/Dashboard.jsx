@@ -86,7 +86,7 @@ export default function Dashboard({ user, onLogout }) {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Hi, {user.username} 👋</h1>
-          <p className="text-sm text-gray-500">Role: {user.role}</p>
+          <p className="text-sm text-gray-500">Role: {user.role_display}</p>
         </div>
 
         <div className="flex items-center gap-3">
