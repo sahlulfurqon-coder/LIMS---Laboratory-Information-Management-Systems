@@ -30,11 +30,12 @@ export default function Samples() {
   const fetchOptions = async () => {
     try {
       const [st, rm] = await Promise.all([
-        api.get("/sample-types/"),
-        api.get("/raw-materials/"),
+        api.get("/samples/sample-types/"),
+        api.get("/samples/raw-materials/"),
       ]);
-      setSampleTypes(st.data);
-      setRawMaterials(rm.data);
+
+      setSampleTypes(Array.isArray(st.data) ? st.data : st.data.results || []);
+      setRawMaterials(Array.isArray(rm.data) ? rm.data : rm.data.results || []);
     } catch (error) {
       console.error("Gagal ambil data pilihan:", error);
     }
@@ -51,8 +52,8 @@ export default function Samples() {
     setLoading(true);
     try {
       const payload = {
-        type, // ID SampleType
-        detail: rawMatType || null, // ID RawMaterial kalau ada
+        type,
+        detail: rawMatType || null,
         tank: tank || null,
         name: name || "",
       };
@@ -61,7 +62,6 @@ export default function Samples() {
 
       alert(`Sample berhasil dibuat. Kode: ${res.data.code}`);
 
-      // reset
       setType("");
       setRawMatType("");
       setTank("");
@@ -89,11 +89,12 @@ export default function Samples() {
               onChange={(e) => setType(e.target.value)}
             >
               <option value="">Pilih jenis</option>
-              {sampleTypes.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name}
-                </option>
-              ))}
+              {Array.isArray(sampleTypes) &&
+                sampleTypes.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))}
             </Select>
           </div>
 
@@ -109,11 +110,12 @@ export default function Samples() {
                     onChange={(e) => setRawMatType(e.target.value)}
                   >
                     <option value="">-- pilih --</option>
-                    {rawMaterials.map((rm) => (
-                      <option key={rm.id} value={rm.id}>
-                        {rm.name} {rm.variant}
-                      </option>
-                    ))}
+                    {Array.isArray(rawMaterials) &&
+                      rawMaterials.map((rm) => (
+                        <option key={rm.id} value={rm.id}>
+                          {rm.name} {rm.variant || ""}
+                        </option>
+                      ))}
                   </Select>
                 </div>
 
@@ -161,7 +163,7 @@ export default function Samples() {
         </form>
       </Card>
 
-      {/* Tabel Samples */}
+      {/* Table Samples */}
       <Card>
         <h2 className="text-lg font-semibold mb-4">Daftar Sampel</h2>
         <div className="overflow-x-auto">
@@ -180,7 +182,11 @@ export default function Samples() {
                   <tr key={s.id} className="bg-white">
                     <td className="border px-2 py-1 font-medium">{s.code}</td>
                     <td className="border px-2 py-1">{s.name}</td>
-                    <td className="border px-2 py-1">{sampleTypes.find((st) => st.id === s.type)?.name || "-"}</td>
+                    <td className="border px-2 py-1">
+                      {Array.isArray(sampleTypes)
+                        ? sampleTypes.find((st) => st.id === s.type)?.name || "-"
+                        : "-"}
+                    </td>
                     <td className="border px-2 py-1">
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${

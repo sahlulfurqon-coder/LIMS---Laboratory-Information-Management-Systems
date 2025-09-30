@@ -1,88 +1,112 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from "../api/axios";
 
-function Analysis({ sampleId }) {
-  const [parameters, setParameters] = useState([]);
-  const [results, setResults] = useState([]);
-  const [value, setValue] = useState("");
-  const [selectedParam, setSelectedParam] = useState("");
+export default function Analysis() {
+  const [tasks, setTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [formData, setFormData] = useState({});
 
+  // ambil daftar task analyst
   useEffect(() => {
-    api.get("/analysis/parameters/")
-      .then(res => setParameters(res.data))
+    api.get("/analysis/results/")
+      .then(res => setTasks(res.data))
       .catch(err => console.error(err));
+  }, []);
 
-    api.get(`/analysis/results/?sample=${sampleId}`)
-      .then(res => setResults(res.data))
+  const handleSelectTask = (task) => {
+    setSelectedTask(task);
+    const initialData = {};
+    ['raw_material','fatblend','finished_product','packaging'].forEach(key => {
+      if(task[key]) initialData[key] = task[key];
+    });
+    initialData.remarks = task.remarks || "";
+    setFormData(initialData);
+  };
+
+  const handleStartTask = () => {
+    api.post(`/analysis/results/${selectedTask.id}/start/`)
+      .then(res => setSelectedTask({...selectedTask, status: "in_progress", started_at: res.data.started_at}))
       .catch(err => console.error(err));
-  }, [sampleId]);
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post("/analysis/results/", {
-        sample: sampleId,
-        parameter: selectedParam,
-        value: value
-      });
-      setValue("");
-      setSelectedParam("");
-      const res = await api.get(`/analysis/results/?sample=${sampleId}`);
-      setResults(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+  const handleChange = (section, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSubmit = () => {
+    api.post(`/analysis/results/${selectedTask.id}/submit/`, formData)
+      .then(res => {
+        alert("Task submitted!");
+        setTasks(prev => prev.map(t => t.id === res.data.id ? res.data : t));
+        setSelectedTask(res.data);
+      })
+      .catch(err => console.error(err));
   };
 
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-bold">Analysis for Sample {sampleId}</h2>
+    <div>
+      <h1>Analyst Tasks</h1>
+      <div style={{display:"flex", gap:"2rem"}}>
+        <div style={{flex:1}}>
+          <h2>Task List</h2>
+          <ul>
+            {tasks.map(task => (
+              <li key={task.id}>
+                <button onClick={() => handleSelectTask(task)}>
+                  {task.analysis_type.name} - {task.sample.code} [{task.status}]
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 my-4">
-        <select
-          value={selectedParam}
-          onChange={(e) => setSelectedParam(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Select Parameter</option>
-          {parameters.map(p => (
-            <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
-          ))}
-        </select>
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Value"
-          className="border p-2 rounded"
-        />
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
-          Submit
-        </button>
-      </form>
+        {selectedTask && (
+          <div style={{flex:2}}>
+            <h2>Task Detail: {selectedTask.sample.code}</h2>
+            <p>Status: {selectedTask.status}</p>
+            {selectedTask.status === "pending" && <button onClick={handleStartTask}>Start Task</button>}
 
-      <h3 className="font-semibold mb-2">Results</h3>
-      <table className="w-full border">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="border p-2">Parameter</th>
-            <th className="border p-2">Value</th>
-            <th className="border p-2">Status</th>
-            <th className="border p-2">Analyst</th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.map(r => (
-            <tr key={r.id}>
-              <td className="border p-2">{r.parameter_name}</td>
-              <td className="border p-2">{r.value}</td>
-              <td className="border p-2">{r.status}</td>
-              <td className="border p-2">{r.analyst}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            {selectedTask.status === "in_progress" && (
+              <div>
+                {['raw_material','fatblend','finished_product','packaging'].map(section => {
+                  const sectionData = formData[section] || {};
+                  return sectionData && (
+                    <div key={section} style={{marginBottom:"1rem"}}>
+                      <h3>{section.replace("_"," ").toUpperCase()}</h3>
+                      {Object.keys(sectionData).map(field => (
+                        <div key={field}>
+                          <label>{field}: </label>
+                          <input
+                            type="text"
+                            value={sectionData[field]}
+                            onChange={e => handleChange(section, field, e.target.value)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+
+                <div>
+                  <label>Remarks: </label>
+                  <textarea
+                    value={formData.remarks}
+                    onChange={e => setFormData({...formData, remarks: e.target.value})}
+                  />
+                </div>
+
+                <button onClick={handleSubmit}>Submit Task</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-export default Analysis;
